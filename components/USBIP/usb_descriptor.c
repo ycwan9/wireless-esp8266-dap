@@ -13,7 +13,6 @@
 #include <stdbool.h>
 
 #include "components/USBIP/usb_descriptor.h"
-#include "components/USBIP/usb_defs.h"
 
 #define USBShort(ui16Value)     ((ui16Value) & 0xff), ((ui16Value) >> 8)
 
@@ -63,18 +62,56 @@ const uint8_t kUSBd0DeviceDescriptor[0x12] =
 
 
 
-
 /**
  * @brief step 2. Buid Standard Configuration Descriptor
  *
  */
 
+// Standard Configuration Descriptor
+#define LENGTHOFCONFIGDESCRIPTOR 9
+
+const uint8_t kUSBd0ConfigurationDescriptor[] =
+{
+// const uint8_t kUSBd0ConfigDescriptor[LENGTHOFCONFIGDESCRIPTOR] =
+#if (USE_WINUSB == 1)
+    // Configuration descriptor header.
+
+    0x09,                                   // bLength
+    USB_DT_CONFIGURATION,                   // bDescriptorType
+
+    USBShort(sizeof(kUSBd0ConfigurationDescriptor)),
+                                            // wTotalLength
+
+    0x01,                                   // bNumInterfaces
+                                            // There is only one interface in the CMSIS-DAP project
+    0x01,                                   // bConfigurationValue: 0x01 is used to select this configuration */
+    0x00,                                   // iConfiguration: no string to describe this configuration */
+    USBD0_CFG_DESC_BMATTRIBUTES,            // bmAttributes
+
+    USBD0_CFG_DESC_BMAXPOWER,               // bMaxPower
+
+#else
+    // Configuration descriptor header.
+
+    0x09,                                   // bLength
+    USB_DT_CONFIGURATION,                   // bDescriptorType
+
+    USBShort(sizeof(kUSBd0ConfigurationDescriptor)),
+                                            // wTotalLength
+
+    0x01,                                   // bNumInterfaces
+                                            // There is only one interface in the CMSIS-DAP project
+    0x01,                                   // bConfigurationValue: 0x01 is used to select this configuration */
+    0x00,                                   // iConfiguration: no string to describe this configuration */
+    USBD0_CFG_DESC_BMATTRIBUTES,            // bmAttributes
+
+    USBD0_CFG_DESC_BMAXPOWER,               // bMaxPower
+#endif
 
 // Standard Interface Descriptor
 
+// const uint8_t kUSBd0InterfaceDescriptor[]=
 #if (USE_WINUSB ==1)
-const uint8_t kUSBd0InterfaceDescriptor[]=
-{
     0x09,                                   // bLength
     USB_DT_INTERFACE,                       // bDescriptorType
     USBD_CUSTOM_CLASS0_IF0_NUM,             // bInterfaceNumber
@@ -84,7 +121,7 @@ const uint8_t kUSBd0InterfaceDescriptor[]=
     USBD_CUSTOM_CLASS0_IF0_CLASS,           // bInterfaceClass
     USBD_CUSTOM_CLASS0_IF0_SUBCLASS,        // bInterfaceSubClass
     USBD_CUSTOM_CLASS0_IF0_PROTOCOL,        // bInterfaceProtocol
-    0x00,                                   // iInterface
+    0x04,                                   // iInterface
                                             // Index of string descriptor describing this interface
     ////TODO: fix this 0x04 ?
 
@@ -162,11 +199,7 @@ const uint8_t kUSBd0InterfaceDescriptor[]=
     0x00, 0x00,                                                // wBytesPerInterval -> 0 for Bulk
 #endif // USE_USB_3_0 == 1
 
-};
-
 #else
-const uint8_t kUSBd0InterfaceDescriptor[0x20]=
-{
     0x09,                                   // bLength
     USB_DT_INTERFACE,                       // bDescriptorType
     USBD_CUSTOM_CLASS0_IF0_NUM,             // bInterfaceNumber
@@ -176,7 +209,7 @@ const uint8_t kUSBd0InterfaceDescriptor[0x20]=
     USBD_CUSTOM_CLASS0_IF0_CLASS,           // bInterfaceClass
     USBD_CUSTOM_CLASS0_IF0_SUBCLASS,        // bInterfaceSubClass
     USBD_CUSTOM_CLASS0_IF0_PROTOCOL,        // bInterfaceProtocol
-    0x00,                                   // iInterface
+    0x04,                                   // iInterface
                                             // Index of string descriptor describing this interface
 
     // HID Descriptor
@@ -209,52 +242,9 @@ const uint8_t kUSBd0InterfaceDescriptor[0x20]=
     USB_ENDPOINT_ATTR_INTERRUPT,                               // bmAttributes
     USBShort(64),                                             // wMaxPacketSize
     0x01,                                                      // bInterval
-};
 #endif
-
-// Standard Configuration Descriptor
-#define LENGTHOFCONFIGDESCRIPTOR 9
-
-#if (USE_WINUSB == 1)
-const uint8_t kUSBd0ConfigDescriptor[LENGTHOFCONFIGDESCRIPTOR] =
-{
-    // Configuration descriptor header.
-
-    0x09,                                   // bLength
-    USB_DT_CONFIGURATION,                   // bDescriptorType
-
-    USBShort((sizeof(kUSBd0InterfaceDescriptor)) + (LENGTHOFCONFIGDESCRIPTOR)),
-                                            // wTotalLength
-
-    0x01,                                   // bNumInterfaces
-                                            // There is only one interface in the CMSIS-DAP project
-    0x01,                                   // bConfigurationValue: 0x01 is used to select this configuration */
-    0x00,                                   // iConfiguration: no string to describe this configuration */
-    USBD0_CFG_DESC_BMATTRIBUTES,            // bmAttributes
-
-    USBD0_CFG_DESC_BMAXPOWER,               // bMaxPower
 };
 
-#else
-const uint8_t kUSBd0ConfigDescriptor[LENGTHOFCONFIGDESCRIPTOR] =
-{
-    // Configuration descriptor header.
-
-    0x09,                                   // bLength
-    USB_DT_CONFIGURATION,                   // bDescriptorType
-
-    USBShort((sizeof(kUSBd0InterfaceDescriptor)) + (LENGTHOFCONFIGDESCRIPTOR)),
-                                            // wTotalLength
-
-    0x01,                                   // bNumInterfaces
-                                            // There is only one interface in the CMSIS-DAP project
-    0x01,                                   // bConfigurationValue: 0x01 is used to select this configuration */
-    0x00,                                   // iConfiguration: no string to describe this configuration */
-    USBD0_CFG_DESC_BMATTRIBUTES,            // bmAttributes
-
-    USBD0_CFG_DESC_BMAXPOWER,               // bMaxPower
-};
-#endif
 
 
 // USB HID Report Descriptor
@@ -307,41 +297,40 @@ const uint8_t kLangDescriptor[0x04] =
  *
  */
 
-const uint8_t kManufacturerString[0x28] =
+
+// -1 byte terminator, to utf-16, +2 byte header
+#define STR_DESC_LENGTH(x) (sizeof(x) * 2)
+
+static const uint8_t kManufacturerString[] =
 {
-    0x28, // bLength
+    STR_DESC_LENGTH("windowsair"),
     0x03, // bDescriptorType
-    // "KEIL - Tools By ARM"
-    'K', 0, 'E', 0, 'I', 0, 'L', 0, ' ', 0, '-', 0, ' ', 0, 'T', 0, 'o', 0, 'o', 0,
-    'l', 0, 's', 0, ' ', 0, 'B', 0, 'y', 0, ' ', 0, 'A', 0, 'R', 0, 'M', 0
+    'w', 0, 'i', 0, 'n', 0, 'd', 0, 'o', 0, 'w', 0, 's', 0, 'a', 0, 'i', 0,
+    'r', 0,
 };
 
-const uint8_t kProductString[0x18] =
+static const uint8_t kProductString[] =
 {
-    0x18, // bLength
+    STR_DESC_LENGTH("Wireless ESP CMSIS-DAP"),
     0x03, // bDescriptorType
-    // "LPC-Link-II"
-    'L', 0, 'P', 0, 'C', 0, '-', 0, 'L', 0, 'i', 0, 'n', 0, 'k', 0, '-', 0, 'I', 0,
-    'I', 0
+    'W', 0, 'i', 0, 'r', 0, 'e', 0, 'l', 0, 'e', 0, 's', 0, 's', 0, ' ', 0,
+    'E', 0, 'S', 0, 'P', 0, ' ', 0, 'C', 0, 'M', 0, 'S', 0, 'I', 0, 'S', 0,
+    '-', 0, 'D', 0, 'A', 0, 'P', 0,
 };
 
-const uint8_t kSerialNumberString[0x1A] =
+static const uint8_t kSerialNumberString[] =
 {
-    0x1A, // bLength
+    STR_DESC_LENGTH("1234"),
     0x03, // bDescriptorType
-    // "0001A0000000"
-    '0', 0, '0', 0, '0', 0, '1', 0, 'A', 0, '0', 0, '0', 0, '0', 0, '0', 0, '0', 0,
-    '0', 0, '0', 0
+    '1', 0, '2', 0, '3', 0, '4', 0,
 };
 
-const uint8_t kInterfaceString[0x2C] =
+static const uint8_t kInterfaceString[] =
 {
-    0x2C, // bLength
+    STR_DESC_LENGTH("CMSIS-DAP v2"),
     0x03, // bDescriptorType
-    // "LPC-Link-II CMSIS-DAP"
-    'L', 0, 'P', 0, 'C', 0, '-', 0, 'L', 0, 'i', 0, 'n', 0, 'k', 0, '-', 0, 'I', 0,
-    'I', 0, ' ', 0, 'C', 0, 'M', 0, 'S', 0, 'I', 0, 'S', 0, '-', 0, 'D', 0, 'A', 0,
-    'P', 0
+    'C', 0, 'M', 0, 'S', 0, 'I', 0, 'S', 0, '-', 0, 'D', 0, 'A', 0, 'P', 0,
+    ' ', 0, 'v', 0, '2', 0,
 };
 
 const uint8_t * const kUSBd0StringDescriptorsSet[0x05] =
@@ -352,3 +341,7 @@ const uint8_t * const kUSBd0StringDescriptorsSet[0x05] =
     kSerialNumberString,
     kInterfaceString
 };
+
+
+// TODO: empty usb_device_qualifier_descriptor
+const usb_device_qualifier_descriptor kUSBd0DeviceQualifierDescriptor = {0};

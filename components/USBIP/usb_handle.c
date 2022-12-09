@@ -23,12 +23,6 @@
 #include <lwip/netdb.h>
 
 
-const char *strings_list[] = {
-        0, // reserved: available languages  -> iInterface
-        "windowsair",
-        "Wireless ESP CMSIS-DAP",
-        "1234",
-};
 // handle functions
 static void handleGetDescriptor(usbip_stage2_header *header);
 
@@ -217,112 +211,79 @@ void handleUSBControlRequest(usbip_stage2_header *header)
 
 static void handleGetDescriptor(usbip_stage2_header *header)
 {
+    const uint8_t *desc_data;
+    uint16_t desc_len = 0;
     // 9.4.3 Get Descriptor
     switch (header->u.cmd_submit.request.wValue.u8hi)
     {
     case USB_DT_DEVICE: // get device descriptor
         os_printf("* GET 0x01 DEVICE DESCRIPTOR\r\n");
-        send_stage2_submit_data(header, 0, &kUSBd0DeviceDescriptor[0], sizeof(kUSBd0DeviceDescriptor));
+        desc_data = kUSBd0DeviceDescriptor;
+        desc_len = sizeof(kUSBd0DeviceDescriptor);
         break;
 
     case USB_DT_CONFIGURATION: // get configuration descriptor
         os_printf("* GET 0x02 CONFIGURATION DESCRIPTOR\r\n");
-        ////TODO: ?
-        if (header->u.cmd_submit.data_length == USB_DT_CONFIGURATION_SIZE)
-        {
-            os_printf("Sending only first part of CONFIG\r\n");
-
-            send_stage2_submit(header, 0, header->u.cmd_submit.data_length);
-            usbip_network_send(kSock, kUSBd0ConfigDescriptor, sizeof(kUSBd0ConfigDescriptor), 0);
-        }
-        else
-        {
-            os_printf("Sending ALL CONFIG\r\n");
-            send_stage2_submit(header, 0, sizeof(kUSBd0ConfigDescriptor) + sizeof(kUSBd0InterfaceDescriptor));
-            usbip_network_send(kSock, kUSBd0ConfigDescriptor, sizeof(kUSBd0ConfigDescriptor), 0);
-            usbip_network_send(kSock, kUSBd0InterfaceDescriptor, sizeof(kUSBd0InterfaceDescriptor), 0);
-        }
+        desc_data = kUSBd0ConfigurationDescriptor;
+        desc_len = sizeof(kUSBd0ConfigurationDescriptor);
         break;
 
     case USB_DT_STRING:
         //os_printf("* GET 0x03 STRING DESCRIPTOR\r\n");
 
-        if (header->u.cmd_submit.request.wValue.u8lo == 0)
         {
-            os_printf("** REQUESTED list of supported languages\r\n");
-            send_stage2_submit_data(header, 0, kLangDescriptor, sizeof(kLangDescriptor));
-        }
-        else if (header->u.cmd_submit.request.wValue.u8lo != 0xee)
-        {
-            //os_printf("low bit : %d\r\n", (int)header->u.cmd_submit.request.wValue.u8lo);
-            //os_printf("high bit : %d\r\n", (int)header->u.cmd_submit.request.wValue.u8hi);
-            int slen = strlen(strings_list[header->u.cmd_submit.request.wValue.u8lo]);
-            int wslen = slen * 2;
-            int buff_len = sizeof(usb_string_descriptor) + wslen;
-            char temp_buff[64];
-            usb_string_descriptor *desc = (usb_string_descriptor *)temp_buff;
-            desc->bLength = buff_len;
-            desc->bDescriptorType = USB_DT_STRING;
-            for (int i = 0; i < slen; i++)
+            uint8_t desc_index = header->u.cmd_submit.request.wValue.u8lo;
+            if (desc_index < sizeof(kUSBd0StringDescriptorsSet) / sizeof(kUSBd0StringDescriptorsSet[0]))
             {
-                desc->wData[i] = strings_list[header->u.cmd_submit.request.wValue.u8lo][i];
-
+                os_printf("** GET STRING DESCRIPTOR\r\n");
+                desc_data = kUSBd0StringDescriptorsSet[desc_index];
+                desc_len = desc_data[0];
             }
-            send_stage2_submit_data(header, 0, (uint8_t *)temp_buff, buff_len);
-        }
-        else
-        {
-            os_printf("low bit : %d\r\n", (int)header->u.cmd_submit.request.wValue.u8lo);
-            os_printf("high bit : %d\r\n", (int)header->u.cmd_submit.request.wValue.u8hi);
-            os_printf("***Unsupported String descriptor***\r\n");
-            send_stage2_submit(header, 0, 0);
+            else
+            {
+                os_printf("low bit : %d\r\n", (int)header->u.cmd_submit.request.wValue.u8lo);
+                os_printf("high bit : %d\r\n", (int)header->u.cmd_submit.request.wValue.u8hi);
+                os_printf("***Unsupported String descriptor***\r\n");
+            }
         }
         break;
 
     case USB_DT_INTERFACE:
         os_printf("* GET 0x04 INTERFACE DESCRIPTOR (UNIMPLEMENTED)\r\n");
         ////TODO:UNIMPLEMENTED
-        send_stage2_submit(header, 0, 0);
         break;
 
     case USB_DT_ENDPOINT:
         os_printf("* GET 0x05 ENDPOINT DESCRIPTOR (UNIMPLEMENTED)\r\n");
         ////TODO:UNIMPLEMENTED
-        send_stage2_submit(header, 0, 0);
         break;
 
     case USB_DT_DEVICE_QUALIFIER:
         os_printf("* GET 0x06 DEVICE QUALIFIER DESCRIPTOR\r\n");
-
-        usb_device_qualifier_descriptor desc;
-
-        memset(&desc, 0, sizeof(usb_device_qualifier_descriptor));
-
-        send_stage2_submit_data(header, 0, &desc, sizeof(usb_device_qualifier_descriptor));
+        desc_data = (uint8_t*)&kUSBd0DeviceQualifierDescriptor;
+        desc_len = sizeof(kUSBd0DeviceQualifierDescriptor);
         break;
 
     case USB_DT_OTHER_SPEED_CONFIGURATION:
         os_printf("GET 0x07 [UNIMPLEMENTED] USB_DT_OTHER_SPEED_CONFIGURATION\r\n");
         ////TODO:UNIMPLEMENTED
-        send_stage2_submit(header, 0, 0);
         break;
 
     case USB_DT_INTERFACE_POWER:
         os_printf("GET 0x08 [UNIMPLEMENTED] USB_DT_INTERFACE_POWER\r\n");
         ////TODO:UNIMPLEMENTED
-        send_stage2_submit(header, 0, 0);
         break;
 #if (USE_WINUSB == 1)
     case USB_DT_BOS:
         os_printf("* GET 0x0F BOS DESCRIPTOR\r\n");
-        uint32_t bos_len = header->u.cmd_submit.request.wLength.u8lo | ((uint32_t) header->u.cmd_submit.request.wLength.u8hi << 8);
-        bos_len = (sizeof(bosDescriptor) < bos_len) ? sizeof(bosDescriptor) : bos_len;
-        send_stage2_submit_data(header, 0, bosDescriptor, bos_len);
+        desc_data = bosDescriptor;
+        desc_len = sizeof(bosDescriptor);
         break;
 #else
     case USB_DT_HID_REPORT:
         os_printf("* GET 0x22 HID REPORT DESCRIPTOR\r\n");
-        send_stage2_submit_data(header, 0, (void *)kHidReportDescriptor, sizeof(kHidReportDescriptor));
+        desc_data = kHidReportDescriptor;
+        desc_len = sizeof(kHidReportDescriptor);
         break;
 #endif
     default:
@@ -332,4 +293,7 @@ static void handleGetDescriptor(usbip_stage2_header *header)
         os_printf("high bit :%d\r\n",header->u.cmd_submit.request.wValue.u8hi);
         break;
     }
+    uint16_t wLength = header->u.cmd_submit.request.wLength.u8lo | ((uint16_t) header->u.cmd_submit.request.wLength.u8hi << 8);
+    send_stage2_submit_data(header, 0, desc_data,
+            (wLength < desc_len) ? wLength : desc_len);
 }

@@ -321,18 +321,6 @@ static int handle_submit(usbip_stage2_header *header, uint32_t length)
             handle_swo_trace_response(header);
         }
         break;
-    // request to save data to device
-    case 0x81:
-        if (header->base.direction == 0)
-        {
-            os_printf("*** WARN! EP 81 DATA TX");
-        }
-        else
-        {
-            os_printf("*** WARN! EP 81 DATA RX");
-        }
-        return -1;
-
     default:
         os_printf("*** WARN ! UNKNOWN ENDPOINT: %d\r\n", (int)header->base.ep);
         return -1;
