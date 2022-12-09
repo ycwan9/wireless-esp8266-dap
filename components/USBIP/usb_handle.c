@@ -211,7 +211,7 @@ void handleUSBControlRequest(usbip_stage2_header *header)
 
 static void handleGetDescriptor(usbip_stage2_header *header)
 {
-    const uint8_t *desc_data;
+    const uint8_t *desc_data = NULL;
     uint16_t desc_len = 0;
     // 9.4.3 Get Descriptor
     switch (header->u.cmd_submit.request.wValue.u8hi)
