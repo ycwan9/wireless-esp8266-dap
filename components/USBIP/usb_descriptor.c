@@ -243,6 +243,92 @@ const uint8_t kUSBd0ConfigurationDescriptor[] =
     USBShort(64),                                             // wMaxPacketSize
     0x01,                                                      // bInterval
 #endif
+
+#ifdef USE_USB_VCP
+    // Interface Association Descriptor
+    0x08,       // bLength
+    USB_DT_IAD, // bDescriptorType
+    USBD_VCP_INT_IF_NUM, // bFirstInterface
+    2, // bInterfaceCount
+    0x02, // bFunctionClass: Communications and CDC Control (0x02)
+    0x02, // bFunctionSubClass: Abstract (modem)
+    0x1, // bFunctionProtocol: AT-commands (v.25ter)
+    0x5, // iFunction
+
+    // intf 1: CDC interrupt
+    0x09,                                   // bLength
+    USB_DT_INTERFACE,                       // bDescriptorType
+    USBD_VCP_INT_IF_NUM,             // bInterfaceNumber
+    0,             // bAlternateSetting
+    0x01,                                   // bNumEndpoints
+    0x2, // bInterfaceClass         2 Communications
+    0x2, // bInterfaceSubClass      2 Abstract (modem)
+    0x1, // bInterfaceProtocol      1 AT-commands (v.25ter)
+    0x05,                                   // iInterface
+
+    // COMMUNICATIONS DESCRIPTOR
+    0x05, // bLength: 5
+    0x24, // bDescriptorType: 0x24 (CS_INTERFACE)
+    0x00, // Descriptor Subtype: Header Functional Descriptor (0x00)
+    0x10, 0x01, // CDC: 0x0110
+
+    // COMMUNICATIONS DESCRIPTOR
+    0x5, // bLength: 5
+    0x24, // bDescriptorType: 0x24 (CS_INTERFACE)
+    0x1, // Descriptor Subtype: Call Management Functional Descriptor (0x01)
+    0x03, // bmCapabilities: 0x03
+    USBD_VCP_BULK_IF_NUM, // Data Interface:
+
+
+    // COMMUNICATIONS DESCRIPTOR
+    0x4, // bLength: 4
+    0x24, // bDescriptorType: 0x24 (CS_INTERFACE)
+    0x02, // Descriptor Subtype: Abstract Control Management Functional Descriptor (0x02)
+    0x06, // bmCapabilities: 0x06 (sends break, line coding and serial state)
+
+    // COMMUNICATIONS DESCRIPTOR
+    0x5, // bLength: 5
+    0x24, // bDescriptorType: 0x24 (CS_INTERFACE)
+    0x06, // Descriptor Subtype: Union Functional Descriptor (0x06)
+    USBD_VCP_INT_IF_NUM, // Control Interface: 0x00
+    USBD_VCP_BULK_IF_NUM, // Subordinate Interface: 0x01
+
+    // EP3: CDC interrupt IN
+    0x07, // bLength
+    USB_DT_ENDPOINT, // bDescriptorType
+    (0x80 | USBD_VCP_INT_EP_NUM), // bEndpointAddress
+    USB_ENDPOINT_ATTR_INTERRUPT, // bmAttributes
+    USBShort(USBD_VCP_EP_SIZE), // wMaxPacketSize
+    0x20, // bInterval
+
+    // intf 2: CDC bulk
+    0x09,                                   // bLength
+    USB_DT_INTERFACE,                       // bDescriptorType
+    USBD_VCP_BULK_IF_NUM,             // bInterfaceNumber
+    0,             // bAlternateSetting
+    0x02,                                   // bNumEndpoints
+    0x0a, // bInterfaceClass: CDC-Data (0x0a)
+    0x0, // bInterfaceSubClass: 0x00
+    0x00, // bInterfaceProtocol: No class specific protocol required (0x00)
+    0x5, // iInterface: 5
+
+    // ENDPOINT DESCRIPTOR
+    0x7, // bLength: 7
+    0x5, // bDescriptorType: 0x05 (ENDPOINT)
+    USBD_VCP_BULK_EP_NUM, // bEndpointAddress: 0x04  OUT  Endpoint:4
+    USB_ENDPOINT_ATTR_BULK, // bmAttributes
+    USBShort(USBD_VCP_EP_SIZE), // wMaxPacketSize: 16
+    0x0, // bInterval: 0
+
+    // ENDPOINT DESCRIPTOR
+    0x7, // bLength: 7
+    0x5, // bDescriptorType: 0x05 (ENDPOINT)
+    (0x80 | USBD_VCP_BULK_EP_NUM), // bEndpointAddress: 0x84  IN  Endpoint:4
+    USB_ENDPOINT_ATTR_BULK, // bmAttributes
+    USBShort(USBD_VCP_EP_SIZE), // wMaxPacketSize: 16
+    0x0, // bInterval: 0
+
+#endif // USE_USB_VCP
 };
 
 
@@ -333,13 +419,23 @@ static const uint8_t kInterfaceString[] =
     ' ', 0, 'v', 0, '2', 0,
 };
 
-const uint8_t * const kUSBd0StringDescriptorsSet[0x05] =
+// No. 5
+static const uint8_t kVCPInterfaceString[] =
+{
+    STR_DESC_LENGTH("CMSIS-DAP CDC"),
+    0x03, // bDescriptorType
+    'C', 0, 'M', 0, 'S', 0, 'I', 0, 'S', 0, '-', 0, 'D', 0, 'A', 0, 'P', 0,
+    ' ', 0, 'C', 0, 'D', 0, 'C', 0,
+};
+
+const uint8_t * const kUSBd0StringDescriptorsSet[] =
 {
     kLangDescriptor,
     kManufacturerString,
     kProductString,
     kSerialNumberString,
-    kInterfaceString
+    kInterfaceString,
+    kVCPInterfaceString
 };
 
 

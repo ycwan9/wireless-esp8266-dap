@@ -30,6 +30,17 @@
 // Alternate Setting
 #define USBD_CUSTOM_CLASS0_IF0_ALT 0
 
+#ifdef USE_USB_VCP
+#define USB_VCP_DESC_LEN (8+9*2+7*2+5+5+4+5)
+#define USBD_VCP_INT_IF_NUM 1
+#define USBD_VCP_INT_EP_NUM 3
+#define USBD_VCP_BULK_IF_NUM (USBD_VCP_INT_IF_NUM + 1)
+#define USBD_VCP_BULK_EP_NUM (USBD_VCP_INT_EP_NUM + 1)
+#define USBD_VCP_EP_SIZE
+#else // USE_USB_VCP
+#define USB_VCP_DESC_LEN 0
+#endif // USE_USB_VCP
+
 // Class Code
 #if (USE_WINUSB == 1)
 #define USBD_CUSTOM_CLASS0_IF0_CLASS 0xFF // 0xFF: Vendor Specific
@@ -47,22 +58,26 @@
 
 // common part
 extern const uint8_t kUSBd0DeviceDescriptor[0x12];
-extern const uint8_t * const kUSBd0StringDescriptorsSet[0x05];
+extern const uint8_t * const kUSBd0StringDescriptorsSet[0x06];
 extern const usb_device_qualifier_descriptor kUSBd0DeviceQualifierDescriptor;
 
 #if (USE_WINUSB == 1)
 
 #if (USE_USB_3_0 == 1)
-extern const uint8_t kUSBd0ConfigurationDescriptor[0x09 + 0x30];
+#define USB_DAP_INTERFACE_DESCRIPTOR_LEN 0x30
 #else
-extern const uint8_t kUSBd0ConfigurationDescriptor[0x09 + 0x1E];
+#define USB_DAP_INTERFACE_DESCRIPTOR_LEN 0x1E
 #endif // USE_USB_3_0 == 1
 
 
 #else
-extern const uint8_t kUSBd0ConfigurationDescriptor[0x09 + 0x20];
+#define USB_DAP_INTERFACE_DESCRIPTOR_LEN 0x20
 extern const uint8_t kHidReportDescriptor[0x21];
 
 #endif
+
+extern const uint8_t kUSBd0ConfigurationDescriptor[
+    0x09 + USB_DAP_INTERFACE_DESCRIPTOR_LEN + USB_VCP_DESC_LEN
+];
 
 #endif
