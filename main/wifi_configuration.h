@@ -10,10 +10,12 @@
 #ifndef __WIFI_CONFIGURATION__
 #define __WIFI_CONFIGURATION__
 
+#define CONF_SSID_LEN 16
+#define CONF_PASSWORD_LEN 16
 
 static struct {
-    const char *ssid;
-    const char *password;
+    const char ssid[CONF_SSID_LEN];
+    const char password[CONF_PASSWORD_LEN];
 } wifi_list[] __attribute__((unused)) = {
     {.ssid = "OTA", .password = "12345678"},
     {.ssid = "DAP", .password = "12345678"},
