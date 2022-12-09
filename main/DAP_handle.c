@@ -110,41 +110,21 @@ void handle_dap_data_request(usbip_stage2_header *header, uint32_t length)
     data_in = &(data_in[sizeof(usbip_stage2_header)]);
     // Point to the beginning of the URB packet
 
-#if (USE_WINUSB == 1)
-    send_stage2_submit(header, 0, 0);
+    send_stage2_submit_data_fast(header, NULL, 0);
 
+#if (USE_WINUSB == 1)
     // always send constant size buf -> cuz we don't care about the IN packet size
     // and to unify the style, we set aside the length of the section
     xRingbufferSend(dap_dataIN_handle, data_in - sizeof(uint32_t), DAP_HANDLE_SIZE, portMAX_DELAY);
-    xTaskNotifyGive(kDAPTaskHandle);
-
 #else
-    send_stage2_submit(header, 0, 0);
-
     xRingbufferSend(dap_dataIN_handle, data_in, DAP_HANDLE_SIZE, portMAX_DELAY);
-    xTaskNotifyGive(kDAPTaskHandle);
-
 #endif
+
+    xTaskNotifyGive(kDAPTaskHandle);
 
     // dap_respond = DAP_ProcessCommand((uint8_t *)data_in, (uint8_t *)data_out);
     // //handle_dap_data_response(header);
     // send_stage2_submit(header, 0, 0);
-}
-
-void handle_dap_data_response(usbip_stage2_header *header)
-{
-    return;
-    // int resLength = dap_respond & 0xFFFF;
-    // if (resLength)
-    // {
-
-    //     send_stage2_submit_data(header, 0, (void *)DAPDataProcessed.buf, resLength);
-    //     dap_respond = 0;
-    // }
-    // else
-    // {
-    //     send_stage2_submit(header, 0, 0);
-    // }
 }
 
 void handle_swo_trace_response(usbip_stage2_header *header)
@@ -261,53 +241,46 @@ void DAP_Thread(void *argument)
     }
 }
 
-int fast_reply(uint8_t *buf, uint32_t length)
+void handle_dap_data_response(usbip_stage2_header *buf_header)
 {
-    usbip_stage2_header *buf_header = (usbip_stage2_header *)buf;
-    if (length == 48 &&
-        buf_header->base.command == PP_HTONL(USBIP_STAGE2_REQ_SUBMIT) &&
-        buf_header->base.direction == PP_HTONL(USBIP_DIR_IN) &&
-        buf_header->base.ep == PP_HTONL(1))
+    if (dap_respond > 0)
     {
-        if (dap_respond > 0)
+        DapPacket_t *item;
+        size_t packetSize = 0;
+        item = (DapPacket_t *)xRingbufferReceiveUpTo(dap_dataOUT_handle, &packetSize,
+                pdMS_TO_TICKS(10), DAP_HANDLE_SIZE);
+        if (packetSize == DAP_HANDLE_SIZE)
         {
-            DapPacket_t *item;
-            size_t packetSize = 0;
-            item = (DapPacket_t *)xRingbufferReceiveUpTo(dap_dataOUT_handle, &packetSize,
-                                                         pdMS_TO_TICKS(10), DAP_HANDLE_SIZE);
-            if (packetSize == DAP_HANDLE_SIZE)
-            {
 #if (USE_WINUSB == 1)
-                send_stage2_submit_data_fast((usbip_stage2_header *)buf, item->buf, item->length);
+            send_stage2_submit_data_fast(buf_header, item->buf, item->length);
 #else
-                send_stage2_submit_data_fast((usbip_stage2_header *)buf, item->buf, DAP_HANDLE_SIZE);
+            send_stage2_submit_data_fast(buf_header, item->buf, DAP_HANDLE_SIZE);
 #endif
 
-                if (xSemaphoreTake(data_response_mux, portMAX_DELAY) == pdTRUE)
-                {
-                    --dap_respond;
-                    xSemaphoreGive(data_response_mux);
-                }
-
-                vRingbufferReturnItem(dap_dataOUT_handle, (void *)item);
-                return 1;
-            }
-            else if (packetSize > 0)
+            if (xSemaphoreTake(data_response_mux, portMAX_DELAY) == pdTRUE)
             {
-                os_printf("Wrong data out packet size:%d!\r\n", packetSize);
+                --dap_respond;
+                xSemaphoreGive(data_response_mux);
             }
-            ////TODO: fast reply
-        }
-        else
-        {
-            buf_header->base.command = PP_HTONL(USBIP_STAGE2_RSP_SUBMIT);
-            buf_header->base.direction = PP_HTONL(USBIP_DIR_OUT);
-            buf_header->u.ret_submit.status = 0;
-            buf_header->u.ret_submit.data_length = 0;
-            buf_header->u.ret_submit.error_count = 0;
-            usbip_network_send(kSock, buf, 48, 0);
+
+            vRingbufferReturnItem(dap_dataOUT_handle, (void *)item);
             return 1;
         }
+        else if (packetSize > 0)
+        {
+            os_printf("Wrong data out packet size:%d!\r\n", packetSize);
+        }
+        ////TODO: fast reply
+    }
+    else
+    {
+        buf_header->base.command = PP_HTONL(USBIP_STAGE2_RSP_SUBMIT);
+        buf_header->base.direction = PP_HTONL(USBIP_DIR_OUT);
+        buf_header->u.ret_submit.status = 0;
+        buf_header->u.ret_submit.data_length = 0;
+        buf_header->u.ret_submit.error_count = 0;
+        usbip_network_send(kSock, (void*)buf_header, 48, 0);
+        return 1;
     }
     return 0;
 }

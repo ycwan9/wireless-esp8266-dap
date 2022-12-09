@@ -193,11 +193,6 @@ static void send_interface_info()
 int emulate(uint8_t *buffer, uint32_t length)
 {
 
-    if(fast_reply(buffer, length))
-    {
-        return 0;
-    }
-
     int command = read_stage2_command((usbip_stage2_header *)buffer, length);
     if (command < 0)
     {
@@ -230,8 +225,7 @@ static int read_stage2_command(usbip_stage2_header *header, uint32_t length)
     }
 
     //client.readBytes((uint8_t *)&header, sizeof(usbip_stage2_header));
-    unpack((uint32_t *)header, sizeof(usbip_stage2_header));
-    return header->base.command;
+    return ntohl(header->base.command);
 }
 
 /**
@@ -287,11 +281,12 @@ static void unpack(void *data, int size)
  */
 static int handle_submit(usbip_stage2_header *header, uint32_t length)
 {
-    switch (header->base.ep)
+    switch (ntohl(header->base.ep))
     {
     // control endpoint(endpoint 0)
     case 0x00:
         //// TODO: judge usb setup 8 byte?
+		unpack((uint32_t *)header, sizeof(usbip_stage2_header));
         handleUSBControlRequest(header);
         break;
 
@@ -310,6 +305,7 @@ static int handle_submit(usbip_stage2_header *header, uint32_t length)
         break;
     // endpoint 2 for SWO trace
     case 0x02:
+		unpack((uint32_t *)header, sizeof(usbip_stage2_header));
         if (header->base.direction == 0)
         {
             // os_printf("EP 02 DATA FROM HOST");
@@ -321,20 +317,8 @@ static int handle_submit(usbip_stage2_header *header, uint32_t length)
             handle_swo_trace_response(header);
         }
         break;
-    // request to save data to device
-    case 0x81:
-        if (header->base.direction == 0)
-        {
-            os_printf("*** WARN! EP 81 DATA TX");
-        }
-        else
-        {
-            os_printf("*** WARN! EP 81 DATA RX");
-        }
-        return -1;
-
     default:
-        os_printf("*** WARN ! UNKNOWN ENDPOINT: %d\r\n", (int)header->base.ep);
+        os_printf("*** WARN ! UNKNOWN ENDPOINT: %d\r\n", (int)ntohl(header->base.ep));
         return -1;
     }
     return 0;
@@ -366,6 +350,7 @@ void send_stage2_submit_data(usbip_stage2_header *req_header, int32_t status, co
     }
 }
 
+// send w/ unprocessed (network byte order) header
 void send_stage2_submit_data_fast(usbip_stage2_header *req_header, const void *const data, int32_t data_length)
 {
     uint8_t * send_buf = (uint8_t *)req_header;
@@ -374,11 +359,14 @@ void send_stage2_submit_data_fast(usbip_stage2_header *req_header, const void *c
     req_header->base.direction = htonl(!(req_header->base.direction));
 
     memset(&(req_header->u.ret_submit), 0, sizeof(usbip_stage2_header_ret_submit));
-    req_header->u.ret_submit.data_length = htonl(data_length);
 
 
     // payload
-    memcpy(&send_buf[sizeof(usbip_stage2_header)], data, data_length);
+	if (data_length) {
+		req_header->u.ret_submit.data_length = htonl(data_length);
+		memcpy(&send_buf[sizeof(usbip_stage2_header)], data, data_length);
+	}
+
     usbip_network_send(kSock, send_buf, sizeof(usbip_stage2_header) + data_length, 0);
 }
 
@@ -386,6 +374,7 @@ void send_stage2_submit_data_fast(usbip_stage2_header *req_header, const void *c
 static void handle_unlink(usbip_stage2_header *header)
 {
     os_printf("s2 handling cmd unlink...\r\n");
+	unpack((uint32_t *)header, sizeof(usbip_stage2_header));
     handle_dap_unlink();
     send_stage2_unlink(header);
 }
