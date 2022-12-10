@@ -42,9 +42,9 @@ const uint8_t kUSBd0DeviceDescriptor[0x12] =
     ////TODO: Is it also available elsewhere?
 
     // We need to use a device other than the USB-IF standard, set to 0x00
-    0x00, // bDeviceClass
-    0x00, // bDeviceSubClass
-    0x00, // bDeviceProtocol
+    0xef, // bDeviceClass: Miscellaneous (0xef)
+    0x2, // bDeviceSubClass: 2
+    0x1, // bDeviceProtocol: 1 (Interface Association Descriptor)
 
 #if (USE_USB_3_0 == 1)
     0x09,                               // bMaxPacketSize0, for USB 3.0 must set to 0x09(2^9)
@@ -82,7 +82,7 @@ const uint8_t kUSBd0ConfigurationDescriptor[] =
     USBShort(sizeof(kUSBd0ConfigurationDescriptor)),
                                             // wTotalLength
 
-    0x01,                                   // bNumInterfaces
+    0x03,                                   // bNumInterfaces
                                             // There is only one interface in the CMSIS-DAP project
     0x01,                                   // bConfigurationValue: 0x01 is used to select this configuration */
     0x00,                                   // iConfiguration: no string to describe this configuration */
@@ -111,6 +111,18 @@ const uint8_t kUSBd0ConfigurationDescriptor[] =
 // Standard Interface Descriptor
 
 // const uint8_t kUSBd0InterfaceDescriptor[]=
+#ifdef USE_USB_VCP
+    // Interface Association Descriptor
+    0x08,       // bLength
+    USB_DT_IAD, // bDescriptorType
+    USBD_VCP_INT_IF_NUM, // bFirstInterface
+    2, // bInterfaceCount
+    0x02, // bFunctionClass: Communications and CDC Control (0x02)
+    0x02, // bFunctionSubClass: Abstract (modem)
+    0x1, // bFunctionProtocol: AT-commands (v.25ter)
+    0x5, // iFunction
+#endif // USE_USB_VCP
+
 #if (USE_WINUSB ==1)
     0x09,                                   // bLength
     USB_DT_INTERFACE,                       // bDescriptorType
@@ -245,16 +257,6 @@ const uint8_t kUSBd0ConfigurationDescriptor[] =
 #endif
 
 #ifdef USE_USB_VCP
-    // Interface Association Descriptor
-    0x08,       // bLength
-    USB_DT_IAD, // bDescriptorType
-    USBD_VCP_INT_IF_NUM, // bFirstInterface
-    2, // bInterfaceCount
-    0x02, // bFunctionClass: Communications and CDC Control (0x02)
-    0x02, // bFunctionSubClass: Abstract (modem)
-    0x1, // bFunctionProtocol: AT-commands (v.25ter)
-    0x5, // iFunction
-
     // intf 1: CDC interrupt
     0x09,                                   // bLength
     USB_DT_INTERFACE,                       // bDescriptorType
